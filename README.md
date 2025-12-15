@@ -185,6 +185,26 @@ python -m pytest
 python -m pytest tests/unit/
 ```
 
+### Key Improvements
+The following improvements have been made to enhance the Qwen Profiler:
+
+1. **Enhanced Testing Coverage**:
+   - Added comprehensive unit tests for the behavioral pillar components (BehavioralArchitect, CognitiveValidator, ResponseCoordinator)
+   - Now includes 25 additional behavioral unit tests, bringing the total to 60 unit tests across all pillars
+
+2. **Expanded Domain Knowledge**:
+   - Added comprehensive knowledge graphs for CrewAI, LangGraph, Langroid, and Semantic Kernel frameworks
+   - Enhanced DomainLinguist to load external knowledge graphs from the research/domain-knowledge/ directory
+   - Knowledge base now covers 5 major AI frameworks with detailed concepts and relationships
+
+3. **External Deliverables**:
+   - Added sample deliverables demonstrating system capabilities across all three pillars
+   - Includes technical validation, behavioral SRE, and semantic architecture reports
+
+4. **Improved Architecture**:
+   - Enhanced the DomainLinguist to dynamically load knowledge graphs from external files
+   - All functionality maintains backward compatibility while extending capabilities
+
 ## Contributing
 We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for more details.
 
