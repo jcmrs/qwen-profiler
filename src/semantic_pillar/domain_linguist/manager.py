@@ -170,7 +170,91 @@ class DomainLinguist:
                 "relationships": ["CrewTask"]
             }
         }
+
+        # Load external knowledge graphs from research directory
+        self._load_external_knowledge_graphs()
     
+    def _load_external_knowledge_graphs(self):
+        """Load knowledge graphs from the research directory to supplement built-in knowledge"""
+        import os
+        import json
+        from pathlib import Path
+
+        # Define the research directory path
+        research_dir = Path("research/domain-knowledge")
+
+        # If running from a different context, try to find the project root
+        if not research_dir.exists():
+            # Look for it relative to this file
+            current_dir = Path(__file__).resolve()
+            project_root = current_dir.parents[3]  # src/semantic_pillar/domain_linguist/ -> project root
+            research_dir = project_root / "research" / "domain-knowledge"
+
+        if not research_dir.exists():
+            self.logger.warning(f"Research directory does not exist: {research_dir}")
+            return
+
+        # Process each framework directory in the research directory
+        for framework_dir in research_dir.iterdir():
+            if framework_dir.is_dir():
+                # Find the knowledge graph file
+                kg_file = framework_dir / "knowledge_graph.json"
+                if kg_file.exists():
+                    try:
+                        with open(kg_file, 'r', encoding='utf-8') as f:
+                            kg_data = json.load(f)
+
+                        # Map the framework name to the enum
+                        framework_name = framework_dir.name.lower()
+                        framework_enum = None
+
+                        # Match the framework name to our enum
+                        for enum_member in DomainFramework:
+                            if enum_member.value == framework_name:
+                                framework_enum = enum_member
+                                break
+
+                        if framework_enum is None:
+                            # If no exact match, try common variations
+                            name_mapping = {
+                                "autogen": DomainFramework.AUTOGEN,
+                                "crewai": DomainFramework.CREWAI,
+                                "langgraph": DomainFramework.LANGGRAPH,
+                                "langroid": DomainFramework.LANGROID,
+                                "semantic-kernel": DomainFramework.SEMANTIC_KERNEL,
+                                "semantic_kernel": DomainFramework.SEMANTIC_KERNEL
+                            }
+                            framework_enum = name_mapping.get(framework_name)
+
+                        if framework_enum is not None:
+                            # Merge concepts from the knowledge graph file
+                            self._merge_knowledge_graph(framework_enum, kg_data)
+                            self.logger.info(f"Loaded knowledge graph for {framework_enum.value} from {kg_file}")
+                        else:
+                            self.logger.warning(f"Unknown framework: {framework_name} in {kg_file}")
+
+                    except Exception as e:
+                        self.logger.error(f"Error loading knowledge graph from {kg_file}: {e}")
+
+    def _merge_knowledge_graph(self, framework: DomainFramework, kg_data: dict):
+        """Merge loaded knowledge graph data into the existing knowledge graph"""
+        if 'concepts' in kg_data:
+            for concept_type, concepts in kg_data['concepts'].items():
+                if concept_type not in self.knowledge_graphs[framework]:
+                    self.knowledge_graphs[framework][concept_type] = {}
+
+                for concept_name, concept_details in concepts.items():
+                    self.knowledge_graphs[framework][concept_type][concept_name] = concept_details
+
+        # Also update translation mappings if present in the knowledge graph
+        if 'mappings' in kg_data and 'common_user_intents' in kg_data['mappings']:
+            framework_name = framework.value
+            if framework_name not in self.translation_mappings:
+                self.translation_mappings[framework_name] = {}
+
+            for intent, translation in kg_data['mappings']['common_user_intents'].items():
+                self.translation_mappings[framework_name][intent] = translation
+
     def translate_user_intent(self, user_intent: str, target_framework) -> SemanticValidationResult:
         """Translate ambiguous user terminology to precise technical concepts"""
         original_intent = user_intent
