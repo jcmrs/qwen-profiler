@@ -4,11 +4,13 @@ Manages dynamic activation of roles and components based on context
 """
 import asyncio
 import threading
-from typing import Dict, List, Optional, Callable, Any, Set
+from typing import Dict, List, Optional, Callable, Any, Set, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 import logging
+import statistics
+from collections import defaultdict, deque
 from ..memory.manager import MemoryManager, MemoryEntry, MemoryType
 
 
@@ -44,7 +46,7 @@ class ActivationProfile:
 
 class ActivationSystem:
     """Manages the activation of various roles and components in the system"""
-    
+
     def __init__(self, memory_manager: Optional[MemoryManager] = None):
         self._profiles: Dict[str, ActivationProfile] = {}
         self._active_profiles: Set[str] = set()
@@ -53,6 +55,11 @@ class ActivationSystem:
         self._init_default_profiles()
         self._cleanup_task = None
         self._setup_cleanup_task()
+
+        # ML-based prediction components
+        self._activation_history: deque = deque(maxlen=1000)  # Keep last 1000 activation events
+        self._context_profile_correlations: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
+        self._last_prediction_refresh = datetime.min
     
     def _init_default_profiles(self):
         """Initialize default activation profiles for the system"""
@@ -124,32 +131,89 @@ class ActivationSystem:
                 return False
             self._profiles[profile.id] = profile
             return True
+
+    def _record_activation_event(self, profile_id: str, context: str, condition: str = None):
+        """Record an activation event for ML model training"""
+        event = {
+            "profile_id": profile_id,
+            "context": context,
+            "condition": condition,
+            "timestamp": datetime.now().isoformat()
+        }
+        self._activation_history.append(event)
+
+        # Update correlations in real-time
+        self._update_correlations(profile_id, context, condition)
+
+    def _update_correlations(self, profile_id: str, context: str, condition: str = None):
+        """Update correlation data for ML prediction"""
+        # Update context-profile correlations
+        if context and profile_id:
+            # Simple frequency-based correlation
+            current_corr = self._context_profile_correlations[context][profile_id]
+            self._context_profile_correlations[context][profile_id] = current_corr + 0.1
+
+        # Normalize correlations to sum to 1 for each context
+        for ctx, profiles in self._context_profile_correlations.items():
+            total = sum(profiles.values())
+            if total > 0:
+                for profile in profiles:
+                    self._context_profile_correlations[ctx][profile] = profiles[profile] / total
+
+    def predict_profiles_for_context(self, context: str, condition: str = None) -> List[Tuple[str, float]]:
+        """Predict which profiles should be activated based on context using ML model"""
+        with self._lock:
+            predictions = []
+
+            # If we have correlation data for this context, use it
+            if context in self._context_profile_correlations:
+                for profile_id, correlation in self._context_profile_correlations[context].items():
+                    # Only include profiles with significant correlation (> 0.1)
+                    if correlation > 0.1:
+                        predictions.append((profile_id, correlation))
+
+            # Sort predictions by correlation strength
+            predictions.sort(key=lambda x: x[1], reverse=True)
+            return predictions
+
+    def predict_and_activate_profiles(self, context: str, condition: str = None, threshold: float = 0.2) -> List[str]:
+        """Use ML model to predict and activate appropriate profiles"""
+        predictions = self.predict_profiles_for_context(context, condition)
+
+        activated_profiles = []
+        for profile_id, confidence in predictions:
+            if confidence >= threshold and self.is_active(profile_id) == False:
+                success = self.activate_profile(profile_id)
+                if success:
+                    activated_profiles.append(profile_id)
+
+        return activated_profiles
     
     def activate_profile(self, profile_id: str, duration: Optional[timedelta] = None) -> bool:
         """Activate a profile by ID"""
         with self._lock:
             if profile_id not in self._profiles:
                 return False
-            
+
             profile = self._profiles[profile_id]
-            
+
             # Check dependencies
             for dep_id in profile.dependencies:
                 if dep_id not in self._active_profiles:
                     logging.warning(f"Cannot activate {profile_id}, dependency {dep_id} not active")
                     return False
-            
+
             # Set expiry time if duration is specified
             if duration:
                 profile.expiry_time = datetime.now() + duration
             else:
                 profile.expiry_time = None  # No expiration
-            
+
             # Activate the profile
             profile.active = True
             profile.activation_time = datetime.now()
             self._active_profiles.add(profile_id)
-            
+
             # Store in memory for tracking
             memory_entry = MemoryEntry(
                 id=f"activation_{profile_id}",
@@ -166,7 +230,10 @@ class ActivationSystem:
                 ttl=timedelta(hours=1)  # Keep activation records for 1 hour
             )
             self._memory_manager.store(memory_entry)
-            
+
+            # Record activation event for ML model
+            self._record_activation_event(profile_id, profile.context.value)
+
             logging.info(f"Activated profile: {profile_id} (context: {profile.context.value})")
             return True
     
@@ -217,22 +284,34 @@ class ActivationSystem:
                 )
             ]
     
-    def activate_by_context(self, context: ActivationContext, duration: Optional[timedelta] = None) -> List[str]:
+    def activate_by_context(self, context: ActivationContext, duration: Optional[timedelta] = None, use_ml_prediction: bool = False) -> List[str]:
         """Activate all profiles matching the specified context"""
         with self._lock:
             activated = []
-            # Sort profiles by priority (highest first)
-            sorted_profiles = sorted(
-                self._profiles.values(),
-                key=lambda p: p.priority,
-                reverse=True
-            )
-            
-            for profile in sorted_profiles:
-                if profile.context == context:
-                    if self.activate_profile(profile.id, duration):
-                        activated.append(profile.id)
-            
+
+            if use_ml_prediction:
+                # Use ML model to predict which profiles should be activated
+                predictions = self.predict_profiles_for_context(context.value)
+                # Activate profiles based on ML predictions
+                for profile_id, confidence in predictions:
+                    profile = self._profiles.get(profile_id)
+                    if profile and profile.context == context and not profile.active:
+                        if self.activate_profile(profile_id, duration):
+                            activated.append(profile_id)
+            else:
+                # Default behavior: activate all profiles matching the context
+                # Sort profiles by priority (highest first)
+                sorted_profiles = sorted(
+                    self._profiles.values(),
+                    key=lambda p: p.priority,
+                    reverse=True
+                )
+
+                for profile in sorted_profiles:
+                    if profile.context == context:
+                        if self.activate_profile(profile.id, duration):
+                            activated.append(profile.id)
+
             return activated
     
     def deactivate_by_context(self, context: ActivationContext) -> List[str]:
