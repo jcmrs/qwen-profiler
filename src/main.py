@@ -4,25 +4,7 @@ Main entry point for the Qwen Profiler application
 import logging
 import structlog
 from .core.config import get_config, ConfigManager
-from .core.memory.manager import MemoryManager
-from .core.activation_system.manager import ActivationSystem
-from .core.validation_gates.manager import ValidationGates
-
-# Technical pillar imports
-from .technical_pillar.infrastructure_architect.manager import InfrastructureArchitect
-from .technical_pillar.validation_engineer.manager import ValidationEngineer
-from .technical_pillar.sre_specialist.manager import SRESpecialist
-
-# Behavioral pillar imports
-from .behavioral_pillar.behavioral_architect.manager import BehavioralArchitect
-from .behavioral_pillar.cognitive_validator.manager import CognitiveValidator
-from .behavioral_pillar.response_coordinator.manager import ResponseCoordinator
-
-# Semantic pillar imports
-from .semantic_pillar.domain_linguist.manager import DomainLinguist
-
-# Integration layer import
-from .integration_layer.manager import IntegrationLayer
+from .conversational_profiler import ConversationalProfiler
 
 
 def setup_logging():
@@ -169,36 +151,31 @@ def run():
         setup_logging()
         logger.info("Logging configured")
 
-        # Initialize all components
-        components = initialize_components()
-        logger.info("All components initialized successfully")
+        # Initialize the conversational profiler which handles all component initialization
+        logger.info("Initializing Conversational Profiler with three-pillar backroom...")
+        conversational_profiler = ConversationalProfiler()
+        logger.info("Conversational Profiler with complete backroom system initialized successfully")
 
-        # Perform initial integrated profiling to test the system
-        test_target = {
-            "user_intent": "make the agents talk to each other",
-            "target_framework": "autogen",
-            "expected_concept": "ConversableAgent",
-            "required_methodology": {
-                "steps": ["analyze", "design", "validate", "deploy"],
-                "validation_gates": ["tech_implementation_check", "behavior_consistency_check"]
-            }
-        }
+        # Example usage: Process a user request to demonstrate the integrated workflow
+        sample_request = "I need to set up a multi-agent system where agents can collaborate to solve research tasks"
 
-        integration_layer = components['integration_layer']
-        results = integration_layer.execute_integrated_profiling(test_target)
-        logger.info("Initial integrated profiling completed", results=results)
+        logger.info("Processing sample user request through three-pillar backroom...")
+        response = conversational_profiler.process_user_request(sample_request, framework_hint="autogen")
+        logger.info(f"Response generated with {len(response.get('recommendations', {}))} recommendations")
 
-        # Run unified monitoring
-        monitoring_report = integration_layer.unified_monitoring()
-        logger.info("Unified monitoring report generated",
-                   report_size=len(str(monitoring_report)))
+        # Display the analysis summary to the user
+        analysis_results = response.get("analysis", {})
+        summary = conversational_profiler.get_analysis_summary(analysis_results)
+        print("\n" + "="*60)
+        print("THREE-PILLAR ANALYSIS SUMMARY")
+        print("="*60)
+        # Replace any Unicode characters that cause encoding issues
+        safe_summary = summary.encode('ascii', errors='replace').decode('ascii')
+        print(safe_summary)
+        print("="*60)
 
-        # Display integration dashboard
-        dashboard = integration_layer.get_integration_dashboard()
-        logger.info("Integration dashboard", dashboard=dashboard)
-
-        logger.info("Qwen Profiler started successfully")
-        return components
+        logger.info("Qwen Profiler started successfully with conversational interface")
+        return conversational_profiler
 
     except Exception as e:
         logger.error(f"Failed to start Qwen Profiler: {e}", exc_info=True)

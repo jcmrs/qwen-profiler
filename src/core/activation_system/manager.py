@@ -56,11 +56,19 @@ class ActivationSystem:
         self._cleanup_task = None
         self._setup_cleanup_task()
 
-        # ML-based prediction components
-        self._activation_history: deque = deque(maxlen=1000)  # Keep last 1000 activation events
-        self._context_profile_correlations: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
-        self._last_prediction_refresh = datetime.min
+        # Initialize ML predictor for activation prediction (deferred instantiation to avoid circular import)
+        self._ml_predictor_instance = None
+        self._memory_manager = memory_manager or MemoryManager()
     
+    @property
+    def ml_predictor(self):
+        """Lazily instantiate the ML predictor to avoid circular imports"""
+        if self._ml_predictor_instance is None:
+            # Import here to avoid circular import issues
+            from ..ml_prediction.predictor import MLRolePredictor
+            self._ml_predictor_instance = MLRolePredictor(memory_manager=self._memory_manager)
+        return self._ml_predictor_instance
+
     def _init_default_profiles(self):
         """Initialize default activation profiles for the system"""
         default_profiles = [
@@ -132,18 +140,38 @@ class ActivationSystem:
             self._profiles[profile.id] = profile
             return True
 
-    def _record_activation_event(self, profile_id: str, context: str, condition: str = None):
-        """Record an activation event for ML model training"""
-        event = {
-            "profile_id": profile_id,
-            "context": context,
-            "condition": condition,
-            "timestamp": datetime.now().isoformat()
-        }
-        self._activation_history.append(event)
+    def deactivate_profile(self, profile_id: str) -> bool:
+        """Deactivate a profile by ID"""
+        with self._lock:
+            if profile_id not in self._profiles:
+                return False
 
-        # Update correlations in real-time
-        self._update_correlations(profile_id, context, condition)
+            profile = self._profiles[profile_id]
+            if not profile.active:
+                return False
+
+            # Check for dependents that would be affected
+            dependents = [pid for pid, p in self._profiles.items() if profile_id in p.dependencies]
+            if dependents:
+                logging.warning(f"Deactivating {profile_id} may affect dependent profiles: {dependents}")
+
+            # Deactivate the profile
+            profile.active = False
+            profile.activation_time = None
+            self._active_profiles.discard(profile_id)
+
+            # Remove from memory
+            self._memory_manager.delete(f"activation_{profile_id}")
+
+            # Record deactivation event for ML model training
+            self.ml_predictor.record_deactivation_event(
+                profile_id=profile_id,
+                context=profile.context,
+                conditions={"deactivation_source": "direct_call", "triggering_context": profile.context.value}
+            )
+
+            logging.info(f"Deactivated profile: {profile_id}")
+            return True
 
     def _update_correlations(self, profile_id: str, context: str, condition: str = None):
         """Update correlation data for ML prediction"""
@@ -160,8 +188,39 @@ class ActivationSystem:
                 for profile in profiles:
                     self._context_profile_correlations[ctx][profile] = profiles[profile] / total
 
+    def predict_profile_activation_probability(self, profile_id: str, context: ActivationContext,
+                                            conditions: Optional[Dict[str, Any]] = None) -> float:
+        """Predict the probability that a profile should be activated in the given context"""
+        prediction = self.ml_predictor.predict_profile_activation(profile_id, context, conditions)
+        return prediction.probability
+
+    def get_predicted_activations_for_context(self, context: ActivationContext,
+                                            conditions: Optional[Dict[str, Any]] = None) -> List[Tuple[str, float]]:
+        """Get profiles predicted to be activated for a given context with their probabilities"""
+        predictions = self.ml_predictor.predict_activations_for_context(
+            context, list(self._profiles.values()), conditions
+        )
+        # Return tuples of (profile_id, probability)
+        return [(pred.profile_id, pred.probability) for pred in predictions]
+
+    def activate_by_context_with_predictions(self, context: ActivationContext,
+                                           threshold: float = 0.5,
+                                           conditions: Optional[Dict[str, Any]] = None,
+                                           duration: Optional[timedelta] = None) -> List[str]:
+        """Activate profiles based on ML predictions with a probability threshold"""
+        predicted_profiles = self.get_predicted_activations_for_context(context, conditions)
+
+        activated_profiles = []
+        for profile_id, probability in predicted_profiles:
+            if probability >= threshold:
+                success = self.activate_profile(profile_id, duration)
+                if success:
+                    activated_profiles.append(profile_id)
+
+        return activated_profiles
+
     def predict_profiles_for_context(self, context: str, condition: str = None) -> List[Tuple[str, float]]:
-        """Predict which profiles should be activated based on context using ML model"""
+        """Predict which profiles should be activated based on context using ML model - Legacy correlation method"""
         with self._lock:
             predictions = []
 
@@ -231,8 +290,12 @@ class ActivationSystem:
             )
             self._memory_manager.store(memory_entry)
 
-            # Record activation event for ML model
-            self._record_activation_event(profile_id, profile.context.value)
+            # Record activation event for ML model training
+            self.ml_predictor.record_activation_event(
+                profile_id=profile_id,
+                context=profile.context,
+                conditions={"activation_source": "direct_call", "triggering_context": profile.context.value}
+            )
 
             logging.info(f"Activated profile: {profile_id} (context: {profile.context.value})")
             return True
