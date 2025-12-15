@@ -185,8 +185,14 @@ class MemoryManager:
         """Check if a memory entry has expired"""
         if entry.ttl is None:
             return False  # No TTL means no expiration
-        
-        return datetime.now() - entry.creation_time > entry.ttl
+
+        # Handle both timedelta and integer (seconds) TTL values
+        if isinstance(entry.ttl, int):
+            ttl_timedelta = timedelta(seconds=entry.ttl)
+        else:
+            ttl_timedelta = entry.ttl
+
+        return datetime.now() - entry.creation_time > ttl_timedelta
     
     def _remove_expired_entry(self, entry_id: str, memory_type: MemoryType):
         """Remove an expired entry"""
