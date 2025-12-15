@@ -25,8 +25,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install uv
-        uv pip install --system -e ".[dev]"  # Use --system flag to install in non-virtual environment in CI
+        pip install -e ".[dev]"  # Use standard pip install instead of uv due to setuptools compatibility
 
     - name: Lint with flake8
       run: |
