@@ -8,6 +8,8 @@ import logging
 import asyncio
 from enum import Enum
 import time
+import statistics
+from collections import deque
 
 from ...core.config import get_config
 from ...core.memory.manager import MemoryManager, MemoryEntry, MemoryType
@@ -60,24 +62,27 @@ class SREReliabilityMetrics:
 
 class SRESpecialist:
     """Manages reliability engineering, monitoring, incident response, and performance optimization"""
-    
-    def __init__(self, memory_manager: Optional[MemoryManager] = None, 
+
+    def __init__(self, memory_manager: Optional[MemoryManager] = None,
                  validation_gates: Optional[ValidationGates] = None):
         self.config = get_config()
         self.memory_manager = memory_manager or MemoryManager()
         self.validation_gates = validation_gates or ValidationGates()
         self.logger = logging.getLogger(__name__)
-        
+
         # System metrics
         self.metrics = SREReliabilityMetrics()
-        
+
         # Incident tracking
         self.active_incidents: Dict[str, Dict[str, Any]] = {}
         self.incident_history: List[Dict[str, Any]] = []
-        
+
         # Monitoring callbacks
         self.monitoring_callbacks: Dict[str, Callable] = {}
-        
+
+        # Metrics history for predictive analysis
+        self.metrics_history: deque = deque(maxlen=100)  # Keep last 100 metric entries
+
         # Initialize system
         self._init_system_monitoring()
     
@@ -248,7 +253,10 @@ class SRESpecialist:
             "incidents_count": self.metrics.incidents_count,
             "timestamp": self.metrics.timestamp.isoformat()
         }
-        
+
+        # Add to metrics history for predictive analysis
+        self.metrics_history.append(metrics_data.copy())
+
         # Store metrics in memory
         metrics_entry = MemoryEntry(
             id="sre_reliability_metrics",
@@ -260,28 +268,28 @@ class SRESpecialist:
         )
         self.memory_manager.store(metrics_entry)
     
-    def update_reliability_metrics(self, uptime: Optional[float] = None, 
+    def update_reliability_metrics(self, uptime: Optional[float] = None,
                                   response_time: Optional[float] = None,
                                   error_rate: Optional[float] = None) -> bool:
         """Update reliability metrics"""
         updated = False
-        
+
         if uptime is not None:
             self.metrics.uptime_percentage = uptime
             updated = True
-        
+
         if response_time is not None:
             self.metrics.response_time_ms = response_time
             updated = True
-        
+
         if error_rate is not None:
             self.metrics.error_rate = error_rate
             updated = True
-        
+
         if updated:
             self.metrics.timestamp = datetime.now()
             self._update_metrics_memory()
-        
+
         return updated
     
     def generate_sre_report(self, report_type: str = "reliability") -> SREReport:
@@ -337,17 +345,17 @@ class SRESpecialist:
             "performance_improvement": {},
             "timestamp": datetime.now().isoformat()
         }
-        
+
         # Placeholder for actual optimization logic
         # In a real system, this would identify and apply performance optimizations
-        
+
         # For now, just return placeholder results
         optimization_results["performance_improvement"] = {
             "response_time_reduction": 0,  # in ms
             "resource_efficiency": 0,  # percentage
             "throughput_improvement": 0  # percentage
         }
-        
+
         # Store optimization results in memory
         optimization_entry = MemoryEntry(
             id=f"optimization_{target_component or 'system'}_{datetime.now().isoformat()}",
@@ -358,8 +366,213 @@ class SRESpecialist:
             ttl=timedelta(hours=4)
         )
         self.memory_manager.store(optimization_entry)
-        
+
         return optimization_results
+
+    def predict_system_metrics(self, look_ahead_hours: int = 1) -> Dict[str, Any]:
+        """Predict system metrics using historical data"""
+        if len(self.metrics_history) < 3:
+            # Not enough data to make predictions
+            return {
+                "predictions": {},
+                "confidence": 0.0,
+                "message": "Insufficient historical data for predictions"
+            }
+
+        # Calculate trends from historical data
+        uptimes = [m["uptime_percentage"] for m in self.metrics_history if "uptime_percentage" in m]
+        response_times = [m["response_time_ms"] for m in self.metrics_history if "response_time_ms" in m]
+        error_rates = [m["error_rate"] for m in self.metrics_history if "error_rate" in m]
+
+        predictions = {}
+        confidence = 0.0
+
+        # Predict uptime (assuming trend continues)
+        if len(uptimes) >= 3:
+            try:
+                # Calculate average change per metric entry
+                uptime_changes = [uptimes[i+1] - uptimes[i] for i in range(len(uptimes)-1)]
+                avg_change = statistics.mean(uptime_changes)
+                predicted_uptime = uptimes[-1] + (avg_change * look_ahead_hours)
+                predicted_uptime = max(0.0, min(100.0, predicted_uptime))  # Keep between 0-100%
+                predictions["predicted_uptime"] = predicted_uptime
+            except:
+                pass
+
+        # Predict response time
+        if len(response_times) >= 3:
+            try:
+                response_changes = [response_times[i+1] - response_times[i] for i in range(len(response_times)-1)]
+                avg_change = statistics.mean(response_changes)
+                predicted_response = response_times[-1] + (avg_change * look_ahead_hours)
+                predicted_response = max(0, predicted_response)  # Response time can't be negative
+                predictions["predicted_response_time"] = predicted_response
+            except:
+                pass
+
+        # Predict error rate
+        if len(error_rates) >= 3:
+            try:
+                error_changes = [error_rates[i+1] - error_rates[i] for i in range(len(error_rates)-1)]
+                avg_change = statistics.mean(error_changes)
+                predicted_error_rate = error_rates[-1] + (avg_change * look_ahead_hours)
+                predicted_error_rate = max(0.0, min(1.0, predicted_error_rate))  # Keep between 0-1
+                predictions["predicted_error_rate"] = predicted_error_rate
+            except:
+                pass
+
+        # Simple confidence calculation based on data availability and stability
+        if predictions:
+            confidence = min(0.95, len(self.metrics_history) / 100.0 * 2)  # Max 95% confidence
+
+        prediction_data = {
+            "predictions": predictions,
+            "confidence": confidence,
+            "look_ahead_hours": look_ahead_hours,
+            "historical_data_points": len(self.metrics_history),
+            "timestamp": datetime.now().isoformat()
+        }
+
+        # Store prediction in memory
+        prediction_entry = MemoryEntry(
+            id=f"prediction_{datetime.now().isoformat()}",
+            content=prediction_data,
+            creation_time=datetime.now(),
+            memory_type=MemoryType.SHORT_TERM,
+            tags=["sre", "prediction", "forecasting"],
+            ttl=timedelta(hours=2)  # Keep predictions for 2 hours
+        )
+        self.memory_manager.store(prediction_entry)
+
+        return prediction_data
+
+    def detect_anomalies(self) -> List[Dict[str, Any]]:
+        """Detect anomalies in system metrics using statistical methods"""
+        if len(self.metrics_history) < 5:
+            # Not enough data to detect anomalies
+            return []
+
+        anomalies = []
+
+        # Check for uptime anomalies
+        uptimes = [m["uptime_percentage"] for m in self.metrics_history if "uptime_percentage" in m]
+        if len(uptimes) >= 5:
+            mean_uptime = statistics.mean(uptimes)
+            stdev_uptime = statistics.stdev(uptimes) if len(uptimes) > 1 else 0
+            current_uptime = uptimes[-1]
+
+            # Identify if current uptime is more than 2 standard deviations from the mean
+            if stdev_uptime > 0 and abs(current_uptime - mean_uptime) > 2 * stdev_uptime:
+                anomalies.append({
+                    "metric": "uptime",
+                    "current_value": current_uptime,
+                    "mean_value": mean_uptime,
+                    "threshold": 2 * stdev_uptime,
+                    "severity": "high" if abs(current_uptime - mean_uptime) > 3 * stdev_uptime else "medium",
+                    "timestamp": datetime.now().isoformat()
+                })
+
+        # Check for response time anomalies
+        response_times = [m["response_time_ms"] for m in self.metrics_history if "response_time_ms" in m]
+        if len(response_times) >= 5:
+            mean_response = statistics.mean(response_times)
+            stdev_response = statistics.stdev(response_times) if len(response_times) > 1 else 0
+            current_response = response_times[-1]
+
+            if stdev_response > 0 and abs(current_response - mean_response) > 2 * stdev_response:
+                anomalies.append({
+                    "metric": "response_time",
+                    "current_value": current_response,
+                    "mean_value": mean_response,
+                    "threshold": 2 * stdev_response,
+                    "severity": "high" if abs(current_response - mean_response) > 3 * stdev_response else "medium",
+                    "timestamp": datetime.now().isoformat()
+                })
+
+        # Check for error rate anomalies
+        error_rates = [m["error_rate"] for m in self.metrics_history if "error_rate" in m]
+        if len(error_rates) >= 5:
+            mean_error_rate = statistics.mean(error_rates)
+            stdev_error_rate = statistics.stdev(error_rates) if len(error_rates) > 1 else 0
+            current_error_rate = error_rates[-1]
+
+            if stdev_error_rate > 0 and abs(current_error_rate - mean_error_rate) > 2 * stdev_error_rate:
+                anomalies.append({
+                    "metric": "error_rate",
+                    "current_value": current_error_rate,
+                    "mean_value": mean_error_rate,
+                    "threshold": 2 * stdev_error_rate,
+                    "severity": "high" if abs(current_error_rate - mean_error_rate) > 3 * stdev_error_rate else "medium",
+                    "timestamp": datetime.now().isoformat()
+                })
+
+        # Store anomalies in memory
+        if anomalies:
+            anomaly_entry = MemoryEntry(
+                id=f"anomalies_{datetime.now().isoformat()}",
+                content={
+                    "anomalies": anomalies,
+                    "timestamp": datetime.now().isoformat()
+                },
+                creation_time=datetime.now(),
+                memory_type=MemoryType.SHORT_TERM,
+                tags=["sre", "anomaly", "detection"],
+                ttl=timedelta(hours=4)  # Keep anomalies for 4 hours
+            )
+            self.memory_manager.store(anomaly_entry)
+
+        return anomalies
+
+    def get_predictive_sre_dashboard(self) -> Dict[str, Any]:
+        """Generate a predictive SRE dashboard with forecasts and anomaly detection"""
+        # Get standard SRE dashboard
+        dashboard = self.get_sre_dashboard()
+
+        # Add predictive elements
+        prediction = self.predict_system_metrics(look_ahead_hours=1)
+        anomalies = self.detect_anomalies()
+
+        predictive_dashboard = {
+            **dashboard,
+            "predictions": {
+                "next_hour": prediction
+            },
+            "anomalies": {
+                "count": len(anomalies),
+                "items": anomalies
+            },
+            "health_score": self._calculate_health_score(anomalies, prediction)
+        }
+
+        return predictive_dashboard
+
+    def _calculate_health_score(self, anomalies: List[Dict], prediction: Dict[str, Any]) -> float:
+        """Calculate an overall system health score based on anomalies and predictions"""
+        # Base health score is 100
+        health_score = 100.0
+
+        # Deduct points for anomalies
+        for anomaly in anomalies:
+            severity_deduction = {
+                "low": 5,
+                "medium": 15,
+                "high": 30
+            }
+            health_score -= severity_deduction.get(anomaly.get("severity", "medium"), 15)
+
+        # Deduct points based on confidence in predictions
+        if prediction.get("confidence", 1.0) < 0.5:
+            health_score -= 10  # Low confidence predictions are risky
+
+        # Deduct points if predictions show degradation
+        predictions = prediction.get("predictions", {})
+        if predictions.get("predicted_error_rate", 0) > 0.05:  # More than 5%
+            health_score -= 10
+        if predictions.get("predicted_response_time", 0) > 1000:  # More than 1 second
+            health_score -= 10
+
+        # Ensure score is between 0 and 100
+        return max(0.0, min(100.0, health_score))
     
     def get_sre_dashboard(self) -> Dict[str, Any]:
         """Generate a comprehensive SRE dashboard"""
