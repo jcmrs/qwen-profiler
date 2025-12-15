@@ -25,7 +25,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e ".[dev]"  # Use standard pip install instead of uv due to setuptools compatibility
+        pip install .[dev]  # Install in non-editable mode to avoid build_editable issues
 
     - name: Lint with flake8
       run: |
