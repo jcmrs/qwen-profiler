@@ -1,0 +1,8 @@
+debug: false
+enable_monitoring: true
+enable_validation: true
+environment: development
+log_level: INFO
+max_workers: 4
+timeout_seconds: 30
+validation_timeout: 60

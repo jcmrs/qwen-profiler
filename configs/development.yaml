@@ -1,0 +1,23 @@
+# Development Configuration
+# Used for local development and testing
+
+environment: "development"
+debug: true
+log_level: "DEBUG"
+enable_monitoring: true
+
+# Core system settings
+max_workers: 2
+timeout_seconds: 30
+
+# Validation settings
+enable_validation: true
+validation_timeout: 60
+
+# Database configuration (if applicable)
+# database_url: "sqlite:///dev.db"
+
+# Development-specific settings
+enable_verbose_logging: true
+enable_profiling: true
+memory_cache_ttl: 300  # 5 minutes for development

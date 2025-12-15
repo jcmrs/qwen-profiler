@@ -1,0 +1,115 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools"
+
+[project]
+name = "qwen-profiler"
+version = "0.1.0"
+description = "Multi-Pillar AI Agent Configuration System for validation across technical, behavioral, and semantic dimensions"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Qwen Profiler Team"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12"
+]
+requires-python = ">=3.9"
+dependencies = [
+    "pyyaml>=6.0",
+    "click>=8.0.0",
+    "structlog>=22.1.0",
+    "pydantic>=2.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "flake8>=6.0",
+    "mypy>=1.0",
+    "pre-commit>=3.0"
+]
+test = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/qwen-profiler/qwen-profiler"
+Repository = "https://github.com/qwen-profiler/qwen-profiler"
+Documentation = "https://github.com/qwen-profiler/qwen-profiler/docs"
+
+[project.scripts]
+qwen-profiler = "qwen_profiler.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["qwen_profiler*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--cov=qwen_profiler",
+    "--cov-report=html",
+    "--cov-report=term"
+]
+
+[tool.coverage.run]
+source = ["qwen_profiler"]
+omit = [
+    "*/tests/*",
+    "*/venv/*",
+    "*/.venv/*",
+    "setup.py"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError"
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]  # To be compatible with Black

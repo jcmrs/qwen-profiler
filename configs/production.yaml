@@ -1,0 +1,27 @@
+# Production Configuration
+# Used for production environment
+
+environment: "production"
+debug: false
+log_level: "WARNING"
+enable_monitoring: true
+
+# Core system settings
+max_workers: 8
+timeout_seconds: 60
+
+# Validation settings
+enable_validation: true
+validation_timeout: 120
+
+# Database configuration (if applicable)
+# database_url: "postgresql://production_db_url"
+
+# Production-specific settings
+enable_verbose_logging: false
+enable_profiling: false
+enable_performance_monitoring: true
+enable_security_audit: true
+memory_cache_ttl: 1800  # 30 minutes for production
+rate_limit_requests: 1000  # per minute
+max_concurrent_connections: 100

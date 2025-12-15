@@ -1,0 +1,24 @@
+# Staging Configuration
+# Used for staging environment and pre-production testing
+
+environment: "staging"
+debug: false
+log_level: "INFO"
+enable_monitoring: true
+
+# Core system settings
+max_workers: 4
+timeout_seconds: 45
+
+# Validation settings
+enable_validation: true
+validation_timeout: 90
+
+# Database configuration (if applicable)
+# database_url: "postgresql://staging_db_url"
+
+# Staging-specific settings
+enable_verbose_logging: false
+enable_profiling: false
+enable_performance_monitoring: true
+memory_cache_ttl: 900  # 15 minutes for staging
