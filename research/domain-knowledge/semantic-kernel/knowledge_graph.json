@@ -1,0 +1,63 @@
+{
+  "framework": "semantic-kernel",
+  "version": "0.1.0",
+  "concepts": {
+    "kernel": {
+      "Kernel": {
+        "description": "The core orchestrator in Semantic Kernel that manages plugins, memory, and execution of functions",
+        "properties": ["plugins", "memory", "logger", "function_invocation_filters"],
+        "relationships": ["KernelPlugin", "AIConfiguration", "Memory"],
+        "usage_examples": [
+          "from semantic_kernel import Kernel\nkernel = Kernel()",
+          "kernel.add_service(AzureOpenAIChatCompletion(service_id=\"default\", ...))"
+        ]
+      }
+    },
+    "plugins": {
+      "KernelPlugin": {
+        "description": "A collection of related semantic functions in Semantic Kernel",
+        "properties": ["name", "description", "functions"],
+        "relationships": ["SemanticFunction", "Kernel"],
+        "usage_examples": [
+          "from semantic_kernel import KernelPlugin\n\nplugin = KernelPlugin(name=\"WriterPlugin\", description=\"Plugin for writing tasks\")",
+          "kernel.add_plugin(plugin, plugin_name=\"WriterPlugin\")"
+        ]
+      },
+      "SemanticFunction": {
+        "description": "A function that leverages AI models for semantic understanding and generation",
+        "properties": ["name", "description", "prompt_template", "input_variables"],
+        "relationships": ["KernelPlugin", "Kernel"],
+        "usage_examples": [
+          "from semantic_kernel.functions import kernel_function\n\nclass MyPlugin:\n    @kernel_function(name=\"translate\", description=\"Translate text to another language\")\n    def translate(self, input_text: str, target_language: str) -> str:\n        # Implementation here\n        return f\"Translated: {input_text}\""
+        ]
+      }
+    },
+    "memory": {
+      "Memory": {
+        "description": "Semantic memory system for storing and retrieving information",
+        "properties": ["storage", "index", "search_config"],
+        "relationships": ["Kernel", "SemanticFunction"],
+        "usage_examples": [
+          "from semantic_kernel.memory import VolatileMemoryStore\n\nmemory = VolatileMemoryStore()\nkernel.register_memory_store(memory)"
+        ]
+      }
+    },
+    "orchestration": {
+      "Plan": {
+        "description": "A structured sequence of functions to achieve a specific goal",
+        "properties": ["goal", "steps", "state"],
+        "relationships": ["Kernel", "SemanticFunction"],
+        "usage_examples": [
+          "# Plans in Semantic Kernel are created by chaining functions\nresult = await kernel.invoke(plugin[\"function_name\"], input_variable=\"value\")"
+        ]
+      }
+    }
+  },
+  "mappings": {
+    "common_user_intents": {
+      "make agents talk to each other": "Use Semantic Kernel's planning and orchestration capabilities to chain functions across plugins",
+      "coordinate activities": "Create Plans that coordinate between different plugins and semantic functions",
+      "share information": "Use the Memory system to share information between different functions and plugins"
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "framework": "crewai",
+  "version": "0.1.0",
+  "concepts": {
+    "agents": {
+      "CrewAgent": {
+        "description": "An intelligent agent in CrewAI framework",
+        "properties": ["role", "goal", "tools", "verbose", "max_iter", "max_rpm", "human_input_mode", "allow_delegation"],
+        "relationships": ["CrewTask", "CrewTool"],
+        "usage_examples": [
+          "CrewAgent(role='Researcher', goal='Search the web for information', tools=search_tools, verbose=True)"
+        ]
+      }
+    },
+    "tasks": {
+      "CrewTask": {
+        "description": "A task to be performed by a CrewAI agent",
+        "properties": ["description", "expected_output", "agent", "tools", "async_execution", "output_file"],
+        "relationships": ["CrewAgent", "CrewTool"],
+        "usage_examples": [
+          "CrewTask(description='Analyze market trends', expected_output='Report', agent=analyst_agent)"
+        ]
+      }
+    },
+    "crew": {
+      "Crew": {
+        "description": "A group of agents working together on tasks",
+        "properties": ["agents", "tasks", "verbose", "process", "manager_llm", "max_rpm"],
+        "relationships": ["CrewAgent", "CrewTask"],
+        "usage_examples": [
+          "Crew(agents=[agent1, agent2], tasks=[task1, task2], process=Process.sequential)"
+        ]
+      }
+    },
+    "tools": {
+      "CrewTool": {
+        "description": "Tools available for agents to perform tasks",
+        "properties": ["name", "description", "func", "args_schema"],
+        "relationships": ["CrewAgent", "CrewTask"],
+        "usage_examples": [
+          "CrewTool(name='Search', description='Search the web', func=search_function)"
+        ]
+      }
+    }
+  },
+  "mappings": {
+    "common_user_intents": {
+      "make agents collaborate": "Create a Crew with multiple CrewAgents and assign specific CrewTasks to each",
+      "coordinate activities": "Use the Crew class to coordinate activities between different agents",
+      "divide work among agents": "Assign different CrewTasks to different CrewAgents within a Crew"
+    }
+  }
+}

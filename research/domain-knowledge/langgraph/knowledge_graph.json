@@ -1,0 +1,64 @@
+{
+  "framework": "langgraph",
+  "version": "0.1.0",
+  "concepts": {
+    "graph": {
+      "Graph": {
+        "description": "The fundamental building block for creating stateful, multi-step applications in LangGraph",
+        "properties": ["nodes", "edges", "entry_point", "finish_point"],
+        "relationships": ["Node", "Edge", "State"],
+        "usage_examples": [
+          "graph = Graph()\ngraph.add_node('start', start_node_func)\ngraph.add_edge('start', 'process')\ngraph.set_entry_point('start')"
+        ]
+      },
+      "StateGraph": {
+        "description": "A special type of graph that maintains state across nodes",
+        "properties": ["state_schema", "nodes", "edges", "entry_point", "finish_point"],
+        "relationships": ["Node", "Edge", "State"],
+        "usage_examples": [
+          "from langgraph.graph import StateGraph\nworkflow = StateGraph(MyState)\nworkflow.add_node('agent', call_model)\nworkflow.add_edge('agent', 'tools')"
+        ]
+      }
+    },
+    "nodes": {
+      "Node": {
+        "description": "A functional unit in a LangGraph that performs specific operations",
+        "properties": ["function", "name", "input_schema", "output_schema"],
+        "relationships": ["Graph", "State"],
+        "usage_examples": [
+          "def process_node(state):\n    return {'processed_data': state['input_data'] + ' processed'}",
+          "workflow.add_node('process', process_node)"
+        ]
+      }
+    },
+    "state": {
+      "State": {
+        "description": "Represents the state of the graph, containing information that persists across node executions",
+        "properties": ["data", "schema", "update_functions"],
+        "relationships": ["Graph", "Node"],
+        "usage_examples": [
+          "class MyState(TypedDict):\n    data: str\n    count: int",
+          "state = MyState(data='initial', count=0)"
+        ]
+      }
+    },
+    "edges": {
+      "Edge": {
+        "description": "Connections between nodes in the graph that determine flow control",
+        "properties": ["source", "target", "condition"],
+        "relationships": ["Node", "Graph"],
+        "usage_examples": [
+          "workflow.add_edge('start', 'process')",
+          "workflow.add_conditional_edges(\n    'agent',\n    { 'continue': 'tools', 'end': END},\n    should_continue\n)"
+        ]
+      }
+    }
+  },
+  "mappings": {
+    "common_user_intents": {
+      "make agents talk to each other": "Create a StateGraph with nodes representing different agents and connect them with edges",
+      "coordinate activities": "Use conditional edges in a graph to coordinate activities based on state",
+      "share information": "Define a shared state schema that multiple nodes (agents) can read from and update"
+    }
+  }
+}

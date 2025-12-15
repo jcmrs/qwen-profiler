@@ -1,0 +1,69 @@
+{
+  "framework": "langroid",
+  "version": "0.1.0",
+  "concepts": {
+    "agents": {
+      "Agent": {
+        "description": "The fundamental unit in Langroid representing an autonomous entity that can process and respond to messages",
+        "properties": ["name", "llm", "task", "state", "message_history"],
+        "relationships": ["ChatAgent", "ToolAgent", "Conversation"],
+        "usage_examples": [
+          "from langroid import Agent\nagent = Agent(name='my_agent', llm=llm_config, task='answer questions')"
+        ]
+      },
+      "ChatAgent": {
+        "description": "A specialized agent for handling chat-based interactions",
+        "properties": ["name", "llm", "default_response", "history_limit"],
+        "relationships": ["Agent", "Conversation"],
+        "usage_examples": [
+          "from langroid import ChatAgent\nchat_agent = ChatAgent(config=ChatAgentConfig(\n    name='assistant',\n    llm=llm_config\n))"
+        ]
+      },
+      "ToolAgent": {
+        "description": "An agent specialized for using tools and functions",
+        "properties": ["name", "tools", "tool_functions", "enable_llm"],
+        "relationships": ["Agent", "Tool"],
+        "usage_examples": [
+          "from langroid import ToolAgent\ntool_agent = ToolAgent(tools=[MyTool], enable_llm=True)"
+        ]
+      }
+    },
+    "tasks": {
+      "Task": {
+        "description": "A unit of work that an agent can perform, including loop control and message handling",
+        "properties": ["agent", "name", "done_if_response", "default_response", "system_message"],
+        "relationships": ["Agent", "Conversation"],
+        "usage_examples": [
+          "from langroid import Task\ntask = Task(\n    agent=agent,\n    name='question_answering',\n    system_message='Answer questions based on provided context.'\n)"
+        ]
+      }
+    },
+    "tools": {
+      "Tool": {
+        "description": "Functions that agents can use to interact with external systems or perform specialized operations",
+        "properties": ["name", "description", "parameters", "fn"],
+        "relationships": ["ToolAgent", "Agent"],
+        "usage_examples": [
+          "from langroid import Tool\n\nclass SearchTool(Tool):\n    name = 'search'\n    description = 'Search the web for information'\n    parameters = {'query': str}\n    \n    def fn(self, query: str):\n        # Implementation here\n        return f'Results for {query}'"
+        ]
+      }
+    },
+    "conversation": {
+      "Conversation": {
+        "description": "Manages the flow of messages between agents",
+        "properties": ["agent", "max_turns", "no_message_pattern", "response_pattern"],
+        "relationships": ["Agent", "Task"],
+        "usage_examples": [
+          "from langroid import Conversation\nconv = Conversation(task=task, max_turns=5)\nresult = conv.run()"
+        ]
+      }
+    }
+  },
+  "mappings": {
+    "common_user_intents": {
+      "make agents talk to each other": "Create multiple Agent instances and use a Conversation to manage message flow between them",
+      "coordinate activities": "Use Tasks to define specific activities for each agent and coordinate through message passing",
+      "share information": "Implement shared databases, message passing, or state management between agents"
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "framework": "autogen",
+  "version": "0.1.0",
+  "concepts": {
+    "agents": {
+      "ConversableAgent": {
+        "description": "An agent that can engage in conversations",
+        "properties": ["name", "llm_config", "human_input_mode", "max_consecutive_auto_reply", "code_execution_config"],
+        "relationships": ["GroupChatManager", "UserProxyAgent", "AssistantAgent"],
+        "usage_examples": [
+          "ConversableAgent(name='user_proxy', llm_config=False, human_input_mode='ALWAYS')",
+          "ConversableAgent(name='assistant', llm_config={'config_list': config_list})"
+        ]
+      },
+      "AssistantAgent": {
+        "description": "A subclass of ConversableAgent with specific default settings for assistants",
+        "properties": ["llm_config", "system_message", "human_input_mode"],
+        "relationships": ["ConversableAgent"],
+        "usage_examples": [
+          "AssistantAgent(name='assistant', llm_config={'config_list': config_list})"
+        ]
+      },
+      "UserProxyAgent": {
+        "description": "A subclass of ConversableAgent that can represent a human user",
+        "properties": ["human_input_mode", "max_consecutive_auto_reply", "code_execution_config"],
+        "relationships": ["ConversableAgent"],
+        "usage_examples": [
+          "UserProxyAgent(name='user_proxy', code_execution_config=False, human_input_mode='TERMINATE')"
+        ]
+      }
+    },
+    "chats": {
+      "GroupChat": {
+        "description": "A group chat environment for multiple agents",
+        "properties": ["agents", "messages", "max_round", "speaker_selection_method"],
+        "relationships": ["ConversableAgent"],
+        "usage_examples": [
+          "GroupChat(agents=agent_list, messages=[], max_round=12)"
+        ]
+      },
+      "GroupChatManager": {
+        "description": "Manages group conversations between agents",
+        "properties": ["agents", "admin_name", "max_round", "speaker_selection_method"],
+        "relationships": ["ConversableAgent", "GroupChat"],
+        "usage_examples": [
+          "GroupChatManager(groupchat=group_chat, llm_config=llm_config)"
+        ]
+      }
+    },
+    "configurations": {
+      "llm_config": {
+        "description": "Configuration for Large Language Model",
+        "properties": ["config_list", "temperature", "seed"],
+        "relationships": ["ConversableAgent", "AssistantAgent", "GroupChatManager"],
+        "usage_examples": [
+          "{'config_list': [{'model': 'gpt-4', 'api_key': '...'}]}",
+          "{'config_list': config_list, 'temperature': 0.7}"
+        ]
+      }
+    }
+  },
+  "mappings": {
+    "common_user_intents": {
+      "make the agents talk to each other": "Create a GroupChat with ConversableAgent instances and register them with a GroupChatManager",
+      "connect them together": "Establish communication protocol between agents using GroupChat",
+      "work as a team": "Configure collaborative agent framework using GroupChat and GroupChatManager",
+      "coordinate activities": "Implement coordination mechanisms through GroupChat speaker selection methods",
+      "share information": "Configure shared memory or communication channel through GroupChat",
+      "learn from each other": "Implement knowledge transfer protocols using message passing in GroupChat"
+    }
+  }
+}
